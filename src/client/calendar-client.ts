@@ -25,15 +25,18 @@ import {
   getStartOfWeek,
   getEndOfWeek,
   formatDateForApi,
+  getUserTimezone,
 } from '../utils/date-utils';
 
 export class CalendarClient {
   private calendar: calendar_v3.Calendar;
   private oauth2Client: OAuth2Client;
+  private timezone: string;
 
   constructor(calendar: calendar_v3.Calendar, oauth2Client: OAuth2Client) {
     this.calendar = calendar;
     this.oauth2Client = oauth2Client;
+    this.timezone = getUserTimezone();
   }
 
   /**
@@ -95,11 +98,11 @@ export class CalendarClient {
         location: params.location,
         start: {
           dateTime: formatDateForApi(params.start),
-          timeZone: params.start.getTimezoneOffset() === 0 ? 'UTC' : undefined,
+          timeZone: this.timezone,
         },
         end: {
           dateTime: formatDateForApi(params.end),
-          timeZone: params.end.getTimezoneOffset() === 0 ? 'UTC' : undefined,
+          timeZone: this.timezone,
         },
         attendees: params.attendees?.map(a => ({ email: a.email, displayName: a.displayName })),
         recurrence: params.recurrence,
@@ -152,13 +155,13 @@ export class CalendarClient {
       if (params.start) {
         event.start = {
           dateTime: formatDateForApi(params.start),
-          timeZone: params.start.getTimezoneOffset() === 0 ? 'UTC' : undefined,
+          timeZone: this.timezone,
         };
       }
       if (params.end) {
         event.end = {
           dateTime: formatDateForApi(params.end),
-          timeZone: params.end.getTimezoneOffset() === 0 ? 'UTC' : undefined,
+          timeZone: this.timezone,
         };
       }
 

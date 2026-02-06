@@ -122,7 +122,7 @@ export function formatEventList(
 /**
  * Format event creation confirmation
  */
-export function formatEventConfirmation(event: CalendarEvent, action: 'created' | 'updated' | 'deleted'): string {
+export function formatEventConfirmation(event: CalendarEvent, action: 'created' | 'updated' | 'deleted', timezone?: string): string {
   const emoji = action === 'created' ? '✓' : action === 'updated' ? '✏️' : '🗑️';
   const verb = action === 'created' ? 'Created' : action === 'updated' ? 'Updated' : 'Deleted';
 
@@ -133,8 +133,8 @@ export function formatEventConfirmation(event: CalendarEvent, action: 'created' 
   const endDate = new Date(event.end.dateTime || event.end.date || '');
 
   lines.push('');
-  lines.push(`📅 ${formatDate(startDate)}`);
-  lines.push(`🕐 ${formatTime(startDate)} - ${formatTime(endDate)}`);
+  lines.push(`📅 ${formatDate(startDate, timezone)}`);
+  lines.push(`🕐 ${formatTime(startDate, timezone)} - ${formatTime(endDate, timezone)}`);
 
   if (event.attendees && event.attendees.length > 0) {
     lines.push(`👥 ${event.attendees.length} attendee${event.attendees.length > 1 ? 's' : ''}`);

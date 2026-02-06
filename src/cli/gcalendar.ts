@@ -23,6 +23,7 @@ import {
   parseTimeExpression,
   parseDuration,
   getStartOfDay,
+  getUserTimezone,
 } from '../utils/date-utils';
 import type { ParsedRequest } from '../client/types';
 
@@ -141,6 +142,7 @@ async function handleAvailability(query: string): Promise<void> {
 async function handleCreate(query: string): Promise<void> {
   const client = await createCalendarClient();
   const parsed = parseNaturalLanguage(query);
+  const timezone = getUserTimezone();
 
   const now = new Date();
   const startDate = parsed.entities.date ? parseDate(parsed.entities.date) : now;
@@ -173,7 +175,7 @@ async function handleCreate(query: string): Promise<void> {
   });
 
   if (result.success && result.data) {
-    console.log(formatEventConfirmation(result.data, 'created'));
+    console.log(formatEventConfirmation(result.data, 'created', timezone));
   } else {
     console.log(formatError(result.error || 'Failed to create event'));
   }

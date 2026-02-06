@@ -102,10 +102,24 @@ export function extractEntities(query: string): ParsedRequest['entities'] {
     entities.date = formatDate(date);
   }
 
-  // Extract time
-  const time = parseTimeExpression(query);
-  if (time) {
-    entities.time = `${time.hours.toString().padStart(2, '0')}:${time.minutes.toString().padStart(2, '0')}`;
+  // Extract time - search anywhere in the query
+  const timePatterns = [
+    /\b(\d{1,2}):(\d{2})\s*(am|pm)\b/i,  // 3:30pm
+    /\b(\d{1,2})\s*(am|pm)\b/i,           // 9am, 3pm
+    /\b(\d{2}):(\d{2})\b/,                  // 24-hour format
+  ];
+
+  let timeMatch = null;
+  for (const pattern of timePatterns) {
+    timeMatch = query.match(pattern);
+    if (timeMatch) break;
+  }
+
+  if (timeMatch) {
+    const time = parseTimeExpression(timeMatch[0]);
+    if (time) {
+      entities.time = `${time.hours.toString().padStart(2, '0')}:${time.minutes.toString().padStart(2, '0')}`;
+    }
   }
 
   // Extract duration
