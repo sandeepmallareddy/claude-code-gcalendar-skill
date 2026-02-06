@@ -233,18 +233,21 @@ source ~/.bashrc  # or ~/.zshrc
 
 #### Option B: Configuration File
 
+Create a `credentials.json` file in the **project root directory**:
+
 ```bash
-# Create the config directory
-mkdir -p ~/.config/gcalendar
+# Navigate to your project/skill directory
+cd ~/.claude/skills/gcalendar  # or your project directory
 
 # Create the credentials file
-touch ~/.config/gcalendar/credentials.json
+touch credentials.json
 
 # Edit with your details
-nano ~/.config/gcalendar/credentials.json
+nano credentials.json
 ```
 
-Paste this template:
+Paste this template (from your Google Cloud Console):
+
 ```json
 {
   "client_id": "YOUR_CLIENT_ID",
@@ -252,6 +255,13 @@ Paste this template:
   "redirect_uris": ["http://localhost:3000/callback"]
 }
 ```
+
+**Where to put the file:**
+
+| Installation Type | File Location |
+|------------------|---------------|
+| Personal skill | `~/.claude/skills/gcalendar/credentials.json` |
+| Project skill | `your-project/.claude/skills/gcalendar/credentials.json` |
 
 ### Step 3: Authenticate
 

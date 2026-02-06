@@ -7,8 +7,19 @@ import { OAuth2Client } from 'google-auth-library';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const TOKEN_PATH = path.join(process.env.HOME || process.env.USERPROFILE || '.', '.config/gcalendar/token.json');
-const CREDENTIALS_PATH = path.join(process.env.HOME || process.env.USERPROFILE || '.', '.config/gcalendar/credentials.json');
+// Project root paths (where credentials.json and token.json will be stored)
+const PROJECT_ROOT = path.resolve(__dirname, '../../');
+const PROJECT_CREDENTIALS_PATH = path.join(PROJECT_ROOT, 'credentials.json');
+const PROJECT_TOKEN_PATH = path.join(PROJECT_ROOT, 'token.json');
+
+// Fallback to user's home directory
+const HOME_CONFIG_DIR = path.join(process.env.HOME || process.env.USERPROFILE || '.', '.config/gcalendar');
+const HOME_CREDENTIALS_PATH = path.join(HOME_CONFIG_DIR, 'credentials.json');
+const HOME_TOKEN_PATH = path.join(HOME_CONFIG_DIR, 'token.json');
+
+// Use project root as primary, home config as fallback
+const CREDENTIALS_PATH = PROJECT_CREDENTIALS_PATH;
+const TOKEN_PATH = PROJECT_TOKEN_PATH;
 
 export interface GoogleAuthConfig {
   clientId: string;
@@ -17,9 +28,25 @@ export interface GoogleAuthConfig {
 }
 
 /**
+ * Check if a path exists and is a valid credentials file
+ */
+function isValidCredentialsFile(filePath: string): boolean {
+  if (!fs.existsSync(filePath)) return false;
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const creds = JSON.parse(content);
+    return !!(creds.client_id && creds.client_secret);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Load credentials from environment or file
+ * Checks project root first, then falls back to home config directory
  */
 export function loadCredentials(): GoogleAuthConfig {
+  // 1. Try environment variables first (highest priority)
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/callback';
@@ -28,10 +55,10 @@ export function loadCredentials(): GoogleAuthConfig {
     return { clientId, clientSecret, redirectUri };
   }
 
-  // Try loading from file
-  if (fs.existsSync(CREDENTIALS_PATH)) {
+  // 2. Try loading from project root credentials.json
+  if (isValidCredentialsFile(PROJECT_CREDENTIALS_PATH)) {
     try {
-      const content = fs.readFileSync(CREDENTIALS_PATH, 'utf-8');
+      const content = fs.readFileSync(PROJECT_CREDENTIALS_PATH, 'utf-8');
       const creds = JSON.parse(content);
       return {
         clientId: creds.client_id,
@@ -39,14 +66,55 @@ export function loadCredentials(): GoogleAuthConfig {
         redirectUri: creds.redirect_uris?.[0] || redirectUri,
       };
     } catch {
-      throw new Error('Failed to parse credentials file');
+      throw new Error('Failed to parse credentials file at ' + PROJECT_CREDENTIALS_PATH);
+    }
+  }
+
+  // 3. Try loading from home config directory
+  if (isValidCredentialsFile(HOME_CREDENTIALS_PATH)) {
+    try {
+      const content = fs.readFileSync(HOME_CREDENTIALS_PATH, 'utf-8');
+      const creds = JSON.parse(content);
+      return {
+        clientId: creds.client_id,
+        clientSecret: creds.client_secret,
+        redirectUri: creds.redirect_uris?.[0] || redirectUri,
+      };
+    } catch {
+      throw new Error('Failed to parse credentials file at ' + HOME_CREDENTIALS_PATH);
     }
   }
 
   throw new Error(
     'Google credentials not found. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables, ' +
-    'or create a credentials file at ' + CREDENTIALS_PATH
+    'or create a credentials.json file in the project root or at ' + HOME_CREDENTIALS_PATH
   );
+}
+
+/**
+ * Get the token storage path (project root preferred)
+ */
+function getTokenStoragePath(): string {
+  // If project token exists or can be written, use it
+  if (fs.existsSync(PROJECT_TOKEN_PATH) || canWriteToDirectory(PROJECT_ROOT)) {
+    return PROJECT_TOKEN_PATH;
+  }
+  // Fallback to home config
+  return HOME_TOKEN_PATH;
+}
+
+/**
+ * Check if we can write to a directory
+ */
+function canWriteToDirectory(dirPath: string): boolean {
+  try {
+    const testFile = path.join(dirPath, '.write-test-' + Date.now());
+    fs.writeFileSync(testFile, 'test');
+    fs.unlinkSync(testFile);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -85,26 +153,42 @@ export async function getTokensFromCode(
   const { tokens } = await oauth2Client.getToken(code);
   oauth2Client.setCredentials(tokens);
 
+  // Determine where to save tokens
+  const tokenPath = getTokenStoragePath();
+  const dir = path.dirname(tokenPath);
+
   // Ensure directory exists
-  const dir = path.dirname(TOKEN_PATH);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
   // Save tokens
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2));
+  fs.writeFileSync(tokenPath, JSON.stringify(tokens, null, 2));
 
-  return TOKEN_PATH;
+  return tokenPath;
 }
 
 /**
  * Load saved tokens
  */
 export function loadTokens(oauth2Client: OAuth2Client): void {
-  if (fs.existsSync(TOKEN_PATH)) {
+  // Try project token first
+  if (fs.existsSync(PROJECT_TOKEN_PATH)) {
     try {
-      const tokens = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf-8'));
+      const tokens = JSON.parse(fs.readFileSync(PROJECT_TOKEN_PATH, 'utf-8'));
       oauth2Client.setCredentials(tokens);
+      return;
+    } catch {
+      // Continue to try home token
+    }
+  }
+
+  // Fallback to home config token
+  if (fs.existsSync(HOME_TOKEN_PATH)) {
+    try {
+      const tokens = JSON.parse(fs.readFileSync(HOME_TOKEN_PATH, 'utf-8'));
+      oauth2Client.setCredentials(tokens);
+      return;
     } catch {
       throw new Error('Failed to load saved tokens');
     }
@@ -131,7 +215,8 @@ export async function ensureValidToken(oauth2Client: OAuth2Client): Promise<void
       oauth2Client.setCredentials(newCredentials);
 
       // Save updated tokens
-      fs.writeFileSync(TOKEN_PATH, JSON.stringify(newCredentials, null, 2));
+      const tokenPath = getTokenStoragePath();
+      fs.writeFileSync(tokenPath, JSON.stringify(newCredentials, null, 2));
     } catch (error) {
       throw new Error('Failed to refresh access token. Please re-authenticate.');
     }
@@ -163,32 +248,68 @@ export async function getAuthenticatedClient(): Promise<{
  * Check if authenticated
  */
 export function isAuthenticated(): boolean {
-  if (!fs.existsSync(TOKEN_PATH)) {
-    return false;
+  // Check project token first
+  if (fs.existsSync(PROJECT_TOKEN_PATH)) {
+    try {
+      const tokens = JSON.parse(fs.readFileSync(PROJECT_TOKEN_PATH, 'utf-8'));
+      return !!(tokens.access_token || tokens.refresh_token);
+    } catch {
+      // Continue to check home token
+    }
   }
 
-  try {
-    const tokens = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf-8'));
-    return !!(tokens.access_token || tokens.refresh_token);
-  } catch {
-    return false;
+  // Check home token
+  if (fs.existsSync(HOME_TOKEN_PATH)) {
+    try {
+      const tokens = JSON.parse(fs.readFileSync(HOME_TOKEN_PATH, 'utf-8'));
+      return !!(tokens.access_token || tokens.refresh_token);
+    } catch {
+      return false;
+    }
   }
+
+  return false;
 }
 
 /**
  * Get token info
  */
 export function getTokenInfo(): { email?: string; expiry?: number } | null {
-  if (!fs.existsSync(TOKEN_PATH)) {
-    return null;
+  // Check project token first
+  if (fs.existsSync(PROJECT_TOKEN_PATH)) {
+    try {
+      const tokens = JSON.parse(fs.readFileSync(PROJECT_TOKEN_PATH, 'utf-8'));
+      return { expiry: tokens.expiry_date };
+    } catch {
+      // Continue to check home token
+    }
   }
 
-  try {
-    const tokens = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf-8'));
-    return {
-      expiry: tokens.expiry_date,
-    };
-  } catch {
-    return null;
+  // Check home token
+  if (fs.existsSync(HOME_TOKEN_PATH)) {
+    try {
+      const tokens = JSON.parse(fs.readFileSync(HOME_TOKEN_PATH, 'utf-8'));
+      return { expiry: tokens.expiry_date };
+    } catch {
+      return null;
+    }
   }
+
+  return null;
+}
+
+/**
+ * Get paths being used (for debugging)
+ */
+export function getStoragePaths(): {
+  credentialsPath: string;
+  tokenPath: string;
+  usingProjectRoot: boolean;
+} {
+  const usingProjectRoot = fs.existsSync(PROJECT_TOKEN_PATH) || canWriteToDirectory(PROJECT_ROOT);
+  return {
+    credentialsPath: CREDENTIALS_PATH,
+    tokenPath: getTokenStoragePath(),
+    usingProjectRoot,
+  };
 }

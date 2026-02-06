@@ -3,7 +3,7 @@
  * Google Calendar CLI Entry Point
  */
 
-import * as yargs from 'yargs';
+import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { createCalendarClient } from '../client/calendar-client';
 import { loadCredentials, getAuthUrl, getTokensFromCode } from '../client/auth';
@@ -429,8 +429,9 @@ async function handleAuth(setup: boolean): Promise<void> {
 
 // Main
 async function main(): Promise<void> {
-  const command = argv._[0];
-  const args = argv as { query?: string; days?: number; event?: string; setup?: boolean };
+  const parsed = await argv;
+  const command = (parsed._[0] as string) || '';
+  const args = parsed as { query?: string; days?: number; event?: string; setup?: boolean };
 
   try {
     switch (command) {

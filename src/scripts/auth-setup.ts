@@ -128,7 +128,7 @@ async function main(): Promise<void> {
     const answer = await new Promise<string>((resolve) => {
       readline.question(
         'Would you like to see setup instructions? (y/n): ',
-        (a) => {
+        (a: string) => {
           readline.close();
           resolve(a.toLowerCase().trim());
         }
