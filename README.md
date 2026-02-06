@@ -272,13 +272,58 @@ npm run auth
 ```
 
 This will:
-1. Open your web browser
-2. Ask you to sign in to Google
+1. Start a local server to receive the OAuth callback
+2. Open your web browser for Google sign-in
 3. Ask permission to access your calendar
-4. Generate an authorization code
+4. Automatically capture the authorization code
 5. Save your credentials securely
 
-Follow the prompts on screen.
+**Expected output:**
+```
+Google Calendar Authentication
+================================
+
+1. Starting authentication...
+
+2. Opening browser for Google sign-in...
+
+   Listening for OAuth callback on port 3000...
+
+3. Sign in to Google and grant permission.
+   A new tab will open after you approve access.
+
+5. Exchanging code for tokens...
+
+✓ Authentication successful!
+  Tokens saved to: /path/to/token.json
+```
+
+#### Troubleshooting Authentication
+
+**Browser doesn't open automatically:**
+- The authentication URL will be displayed in the terminal
+- Copy and paste it into your browser manually
+
+**Callback page shows "Site can't be reached":**
+- Wait a moment for the server to start (may take 2-3 seconds)
+- If the issue persists, the script will prompt for manual code entry
+
+**Manual code entry fallback:**
+If the automatic callback doesn't work:
+1. Look at the URL in your browser after granting permission
+2. The URL will look like: `http://localhost:3000/callback?code=XXX...`
+3. Copy the code value (everything after `code=`)
+4. Paste it into the terminal when prompted
+
+**"Port 3000 already in use" error:**
+```bash
+# Check what's using port 3000
+lsof -i :3000
+
+# Or change the redirect URI in Google Cloud Console
+# and set GOOGLE_REDIRECT_URI environment variable
+export GOOGLE_REDIRECT_URI="http://localhost:3001/callback"
+```
 
 ---
 

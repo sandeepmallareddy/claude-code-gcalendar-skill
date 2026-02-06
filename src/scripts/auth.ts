@@ -26,19 +26,20 @@ function startCallbackServer(): Promise<string> {
 
       if (code) {
         receivedCode = code;
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(`
           <!DOCTYPE html>
           <html>
           <head>
             <title>Authentication Successful</title>
+            <meta charset="UTF-8">
             <style>
               body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-              .success { color: green; }
+              .success { color: green; font-size: 24px; }
             </style>
           </head>
           <body>
-            <h1 class="success">✓ Authentication Successful!</h1>
+            <h1 class="success">[OK] Authentication Successful!</h1>
             <p>You can close this window and return to the terminal.</p>
             <p>The authorization code has been received.</p>
           </body>
@@ -46,19 +47,20 @@ function startCallbackServer(): Promise<string> {
         `);
         server?.close();
       } else if (error) {
-        res.writeHead(400, { 'Content-Type': 'text/html' });
+        res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(`
           <!DOCTYPE html>
           <html>
           <head>
             <title>Authentication Failed</title>
+            <meta charset="UTF-8">
             <style>
               body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-              .error { color: red; }
+              .error { color: red; font-size: 24px; }
             </style>
           </head>
           <body>
-            <h1 class="error">Authentication Failed</h1>
+            <h1 class="error">[ERROR] Authentication Failed</h1>
             <p>Error: ${error}</p>
             <p>Please try again.</p>
           </body>
