@@ -29,16 +29,37 @@ export interface GoogleAuthConfig {
 
 /**
  * Check if a path exists and is a valid credentials file
+ * Supports both direct format and Google Cloud Console's "web" nested format
  */
 function isValidCredentialsFile(filePath: string): boolean {
   if (!fs.existsSync(filePath)) return false;
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const creds = JSON.parse(content);
-    return !!(creds.client_id && creds.client_secret);
+    // Support both direct format and Google Cloud's "web" nested format
+    const hasClientId = creds.client_id || (creds.web && creds.web.client_id);
+    const hasClientSecret = creds.client_secret || (creds.web && creds.web.client_secret);
+    return !!(hasClientId && hasClientSecret);
   } catch {
     return false;
   }
+}
+
+/**
+ * Extract credentials from file (handles both formats)
+ */
+function extractCredentials(filePath: string): { clientId: string; clientSecret: string; redirectUri: string } {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const creds = JSON.parse(content);
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/callback';
+
+  // Support both direct format and Google Cloud's "web" nested format
+  const web = creds.web || creds;
+  return {
+    clientId: web.client_id,
+    clientSecret: web.client_secret,
+    redirectUri: (web.redirect_uris && web.redirect_uris[0]) || redirectUri,
+  };
 }
 
 /**
@@ -58,12 +79,11 @@ export function loadCredentials(): GoogleAuthConfig {
   // 2. Try loading from project root credentials.json
   if (isValidCredentialsFile(PROJECT_CREDENTIALS_PATH)) {
     try {
-      const content = fs.readFileSync(PROJECT_CREDENTIALS_PATH, 'utf-8');
-      const creds = JSON.parse(content);
+      const creds = extractCredentials(PROJECT_CREDENTIALS_PATH);
       return {
-        clientId: creds.client_id,
-        clientSecret: creds.client_secret,
-        redirectUri: creds.redirect_uris?.[0] || redirectUri,
+        clientId: creds.clientId,
+        clientSecret: creds.clientSecret,
+        redirectUri: creds.redirectUri,
       };
     } catch {
       throw new Error('Failed to parse credentials file at ' + PROJECT_CREDENTIALS_PATH);
@@ -73,12 +93,11 @@ export function loadCredentials(): GoogleAuthConfig {
   // 3. Try loading from home config directory
   if (isValidCredentialsFile(HOME_CREDENTIALS_PATH)) {
     try {
-      const content = fs.readFileSync(HOME_CREDENTIALS_PATH, 'utf-8');
-      const creds = JSON.parse(content);
+      const creds = extractCredentials(HOME_CREDENTIALS_PATH);
       return {
-        clientId: creds.client_id,
-        clientSecret: creds.client_secret,
-        redirectUri: creds.redirect_uris?.[0] || redirectUri,
+        clientId: creds.clientId,
+        clientSecret: creds.clientSecret,
+        redirectUri: creds.redirectUri,
       };
     } catch {
       throw new Error('Failed to parse credentials file at ' + HOME_CREDENTIALS_PATH);
