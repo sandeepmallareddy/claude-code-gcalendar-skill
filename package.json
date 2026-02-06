@@ -1,0 +1,48 @@
+{
+  "name": "claude-code-gcalendar-skill",
+  "version": "1.0.0",
+  "description": "A Claude Code skill for managing Google Calendar with natural language",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "jest",
+    "test:unit": "jest --testPathPattern=tests/unit",
+    "test:integration": "jest --testPathPattern=tests/integration",
+    "test:functional": "jest --testPathPattern=tests/functional",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "gcalendar": "ts-node src/cli/gcalendar.ts",
+    "auth": "ts-node src/scripts/auth.ts",
+    "auth:setup": "ts-node src/scripts/auth-setup.ts",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "clean": "rm -rf dist coverage"
+  },
+  "keywords": [
+    "claude-code",
+    "google-calendar",
+    "skill",
+    "calendar",
+    "scheduling"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "googleapis": "^171.4.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.2.1",
+    "jest": "^30.2.0",
+    "jest-environment-node": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
